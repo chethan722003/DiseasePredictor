@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Disease Predictor</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(to right, #e0eafc, #cfdef3);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .form-section {
+      animation: fadeInUp 1s ease;
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .selected-symptom {
+      display: inline-block;
+      background-color: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-radius: 20px;
+      padding: 5px 10px;
+      margin: 5px;
+      font-size: 0.9rem;
+    }
+    .selected-symptom button {
+      background: none;
+      border: none;
+      color: red;
+      font-weight: bold;
+      margin-left: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<div class="container py-5">
+  <div class="bg-white shadow-xl rounded-xl p-6 max-w-3xl mx-auto form-section">
+    <h2 class="text-2xl font-bold mb-4 text-center">🌡️ Weather-Based Disease Predictor</h2>
+    <form action="/predict" method="POST" class="space-y-4" onsubmit="return validateForm(event)">
+
+      <div class="form-group">
+        <label class="form-label">Age:</label>
+        <input type="number" name="age" class="form-control" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Gender:</label>
+        <select name="gender" class="form-select">
+          <option value="1">Male</option>
+          <option value="0">Female</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">City (Search):</label>
+        <input type="text" name="city" id="city" class="form-control" placeholder="Enter city" required autocomplete="off">
+        <ul class="list-group mt-1" id="city-suggestions"></ul>
+      </div>
+      <p class="info-note">ℹ️ Weather data was auto-filled when you selected the city.</p>
+      <div class="form-group d-flex gap-3">
+        <div class="flex-fill">
+          <label class="form-label">Temperature (°C):</label>
+          <input type="number" step="any" name="temp" id="temp" class="form-control">
+        </div>
+        <div class="flex-fill">
+          <label class="form-label">Humidity (%):</label>
+          <input type="number" step="any" name="humidity" id="humidity" class="form-control">
+        </div>
+        <div class="flex-fill">
+          <label class="form-label">Wind Speed (km/h):</label>
+          <input type="number" step="any" name="wind" id="wind" class="form-control">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Search Symptoms:</label>
+        <input type="text" id="search" class="form-control" placeholder="Type to filter symptoms...">
+      </div>
+
+      <div class="form-group">
+        <div id="selected-symptoms" class="mb-3"></div>
+      </div>
+
+      <div id="symptom-list" class="max-h-60 overflow-auto border rounded p-2">
+        {% for symptom in symptoms %}
+          <div class="form-check">
+            <input class="form-check-input symptom-checkbox" type="checkbox" name="symptoms" value="{{ symptom }}" id="symptom_{{ loop.index }}">
+            <label class="form-check-label" for="symptom_{{ loop.index }}">
+              {{ symptom.replace("_", " ").title() }}
+            </label>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="text-center">
+        <button type="submit" class="btn btn-primary mt-4 px-4 py-2 shadow-md">Predict Disease</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// Prevent form from submitting on Enter in city input
+function validateForm(event) {
+  const selectedSymptoms = document.querySelectorAll(".symptom-checkbox:checked");
+  if (selectedSymptoms.length === 0) {
+    event.preventDefault();
+    alert("Please select at least one symptom before predicting.");
+    return false;
+  }
+  return true;
+}
+
+// --- City Input: Fetch weather data on Enter key press ---
+const cityInput = document.getElementById('city');
+const tempInput = document.getElementById('temp');
+const humidityInput = document.getElementById('humidity');
+const windInput = document.getElementById('wind');
+
+cityInput.addEventListener('keydown', function (e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const city = cityInput.value.trim();
+    if (!city) return;
+
+    const apiKey = "2c212ce513bcb9f2c93bcd8367a7edf8";
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        tempInput.value = data.main.temp;
+        humidityInput.value = data.main.humidity;
+        windInput.value = data.wind.speed;
+      })
+      .catch(() => {
+        alert("City not found or API error.");
+        tempInput.value = "";
+        humidityInput.value = "";
+        windInput.value = "";
+      });
+  }
+});
+
+// Search and toggle symptoms without losing checked state
+const searchInput = document.getElementById("search");
+const symptomList = document.getElementById("symptom-list");
+const selectedSymptomsDiv = document.getElementById("selected-symptoms");
+
+searchInput.addEventListener("input", function () {
+  const search = this.value.toLowerCase();
+  const checkboxes = symptomList.querySelectorAll(".form-check");
+
+  checkboxes.forEach(item => {
+    const checkbox = item.querySelector("input[type='checkbox']");
+    const label = item.innerText.toLowerCase();
+    const isChecked = checkbox.checked;
+
+    // Always show if it's checked, otherwise filter by search
+    if (isChecked || label.includes(search)) {
+      item.style.display = "block";
+    } else {
+      item.style.display = "none";
+    }
+  });
+});
+
+// Track selected symptoms
+document.querySelectorAll(".symptom-checkbox").forEach(cb => {
+  cb.addEventListener("change", function () {
+    const value = this.value;
+    const id = `tag_${value}`;
+    if (this.checked) {
+      const tag = document.createElement("span");
+      tag.id = id;
+      tag.className = "selected-symptom";
+      tag.innerHTML = `${value.replace(/_/g, " ")} <button onclick="removeSymptom('${value}')">×</button>`;
+      selectedSymptomsDiv.appendChild(tag);
+    } else {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+  });
+});
+
+function removeSymptom(value) {
+  const checkbox = document.querySelector(`input[value='${value}']`);
+  checkbox.checked = false;
+  const tag = document.getElementById(`tag_${value}`);
+  if (tag) tag.remove();
+}
+</script>
+
+</body>
+</html>
