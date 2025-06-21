@@ -59,11 +59,6 @@ Model files:
 
 ---
 
-## 📷 Screenshots
-
-> _Add images of your UI flow here (form, prediction screen, etc.)_
-
----
 
 ## ⚙️ Installation
 
